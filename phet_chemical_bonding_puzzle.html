@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi Ikatan Kimia - PhET Style Interactive Game</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            user-select: none;
+            overflow-x: hidden;
+        }
+        
+        .font-header {
+            font-family: 'Fredoka', cursive, sans-serif;
+        }
+
+        /* Glassmorphism Effect */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+        }
+
+        /* Puzzle Ion Pieces Shapes */
+        .puzzle-piece {
+            transition: all 0.2s ease-in-out;
+            cursor: grab;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+        }
+        .puzzle-piece:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #2563eb;
+        }
+
+        /* Pulsing & Glow Animations */
+        @keyframes glow {
+            0%, 100% { filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.6)); }
+            50% { filter: drop-shadow(0 0 25px rgba(147, 51, 234, 0.8)); }
+        }
+        .reactor-glow {
+            animation: glow 3s infinite ease-in-out;
+        }
+
+        @keyframes success-pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.03); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-success {
+            animation: success-pulse 0.5s ease-out forwards;
+        }
+
+        /* Custom Tooltip */
+        .tooltip {
+            visibility: hidden;
+            position: absolute;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+        .has-tooltip:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-slate-950 text-slate-100">
+
+    <!-- Navbar Header -->
+    <header class="glass-card sticky top-0 z-40 px-4 py-3 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+            <!-- Brand / Title -->
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-blue-600 to-indigo-500 p-2.5 rounded-xl text-white shadow-lg shadow-blue-500/30">
+                    <i class="fa-solid font-bold fa-atom text-2xl animate-spin" style="animation-duration: 10s;"></i>
+                </div>
+                <div>
+                    <h1 class="font-header text-2xl font-bold tracking-wide bg-gradient-to-r from-blue-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent">
+                        PhET Chemistry Lab
+                    </h1>
+                    <p class="text-xs text-slate-400">Simulasi Puzzle Ikatan Ionik & Kovalen</p>
+                </div>
+            </div>
+
+            <!-- Mode Selector Switcher -->
+            <div class="flex bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-sm font-semibold">
+                <button id="btn-mode-ionic" onclick="switchMode('ionic')" class="flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 bg-blue-600 text-white shadow-md">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>Ikatan Ionik</span>
+                </button>
+                <button id="btn-mode-covalent" onclick="switchMode('covalent')" class="flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-circle-nodes"></i>
+                    <span>Ikatan Kovalen</span>
+                </button>
+            </div>
+
+            <!-- Game Stats & Controls -->
+            <div class="flex items-center space-x-4">
+                <!-- Score Board -->
+                <div class="flex items-center bg-slate-900/90 px-3 py-1.5 rounded-lg border border-slate-800">
+                    <i class="fa-solid fa-trophy text-amber-400 mr-2"></i>
+                    <span class="text-xs text-slate-400 mr-1">Skor:</span>
+                    <span id="score-display" class="font-header text-lg font-bold text-amber-400">0</span>
+                </div>
+
+                <!-- Level / Target Counter -->
+                <div class="flex items-center bg-slate-900/90 px-3 py-1.5 rounded-lg border border-slate-800">
+                    <i class="fa-solid fa-vial-circle-check text-emerald-400 mr-2"></i>
+                    <span class="text-xs text-slate-400 mr-1">Terselesaikan:</span>
+                    <span id="completed-display" class="font-header text-lg font-bold text-emerald-400">0/5</span>
+                </div>
+
+                <!-- Periodic Table Toggle Button -->
+                <button onclick="togglePeriodicTable()" class="bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 px-3 py-2 rounded-xl transition flex items-center text-xs font-semibold">
+                    <i class="fa-solid fa-table-cells mr-1.5"></i>
+                    <span>Tabel Periodik</span>
+                </button>
+
+                <!-- Audio Toggle -->
+                <button id="btn-audio" onclick="toggleSound()" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition">
+                    <i id="audio-icon" class="fa-solid fa-volume-high"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Simulation Canvas Workspace -->
+    <main class="max-w-7xl mx-auto w-full p-4 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+        
+        <!-- Left Column: Controls & Dynamic Quest Card (3 cols) -->
+        <div class="lg:col-span-3 flex flex-col gap-4">
+            <!-- Target Compound Quest Card -->
+            <div class="glass-card rounded-2xl p-4 border border-blue-500/20 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl pointer-events-none"></div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-blue-400 bg-blue-950/60 px-2.5 py-1 rounded-full border border-blue-800/50">
+                        Target Senyawa
+                    </span>
+                    <span id="target-mode-badge" class="text-xs text-slate-400">Mode Ionik</span>
+                </div>
+                
+                <h2 id="target-compound-name" class="font-header text-2xl font-bold text-slate-100 my-1">Natrium Klorida</h2>
+                <div id="target-compound-formula" class="text-3xl font-extrabold text-teal-400 font-mono tracking-wider mb-2">NaCl</div>
+                <p id="target-compound-desc" class="text-xs text-slate-300 leading-relaxed min-h-[48px]">
+                    Gabungkan kation Natrium (Na⁺) dan anion Klorida (Cl⁻) hingga mencapai muatan netral!
+                </p>
+
+                <!-- Mini Progress/Hint -->
+                <div class="mt-3 pt-3 border-t border-slate-800/80 flex justify-between items-center text-xs text-slate-400">
+                    <span>Aturan Kestabilan:</span>
+                    <span id="rule-hint-text" class="text-amber-400 font-semibold">Netralisasi Muatan (0)</span>
+                </div>
+            </div>
+
+            <!-- Reaction Controls & Status Panel -->
+            <div class="glass-card rounded-2xl p-4 flex flex-col justify-between flex-grow">
+                <div>
+                    <h3 class="font-header text-lg font-bold text-slate-200 mb-3 flex items-center">
+                        <i class="fa-solid fa-sliders text-blue-400 mr-2"></i>
+                        Kontrol Reaktor
+                    </h3>
+                    
+                    <!-- Charge Neutrality Status Display (Ionic Mode) -->
+                    <div id="ionic-status-panel" class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 mb-4">
+                        <div class="flex justify-between items-center mb-1 text-xs text-slate-400">
+                            <span>Total Muatan Positif (+)</span>
+                            <span id="cation-charge-sum" class="font-bold text-sky-400">+0</span>
+                        </div>
+                        <div class="flex justify-between items-center mb-2 text-xs text-slate-400">
+                            <span>Total Muatan Negatif (-)</span>
+                            <span id="anion-charge-sum" class="font-bold text-rose-400">-0</span>
+                        </div>
+                        <div class="h-2 bg-slate-800 rounded-full overflow-hidden flex mb-2">
+                            <div id="charge-bar-pos" class="bg-sky-500 h-full transition-all duration-300" style="width: 0%"></div>
+                            <div id="charge-bar-neg" class="bg-rose-500 h-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                        <div class="flex justify-between items-center text-xs font-bold pt-1 border-t border-slate-800">
+                            <span>Muatan Net Total:</span>
+                            <span id="net-charge-display" class="text-amber-400 text-sm font-mono">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Octet/Duplet Status Display (Covalent Mode - Hidden initially) -->
+                    <div id="covalent-status-panel" class="hidden bg-slate-900/90 rounded-xl p-3 border border-slate-800 mb-4">
+                        <div class="text-xs text-slate-400 mb-2">Status Elektron Valensi Terbagi:</div>
+                        <div id="covalent-atoms-status" class="space-y-1.5 text-xs">
+                            <!-- Dynamic atom electron counts -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="space-y-2 mt-4">
+                    <button id="btn-test-bond" onclick="testBonding()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-header font-bold text-lg rounded-xl shadow-lg shadow-teal-500/20 active:scale-98 transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-flask-vial"></i>
+                        <span>Uji Ikatan / Reaksikan</span>
+                    </button>
+                    
+                    <button onclick="clearReactor()" class="w-full py-2 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 font-semibold text-xs rounded-xl border border-slate-700 transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        <span>Bersihkan Stasiun Kerja</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Column: Interactive Reactor / Dropzone Area (6 cols) -->
+        <div class="lg:col-span-6 flex flex-col gap-4">
+            <!-- Reactor Canvas Area -->
+            <div id="reactor-area" class="glass-card rounded-2xl p-4 flex-grow flex flex-col relative min-h-[380px] border border-blue-500/30 reactor-glow">
+                <!-- Watermark Background -->
+                <div class="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
+                    <i class="fa-solid fa-vial text-9xl"></i>
+                </div>
+
+                <!-- Header of Dropzone -->
+                <div class="flex justify-between items-center mb-2 z-10">
+                    <span class="text-xs font-semibold text-slate-400 flex items-center">
+                        <i class="fa-solid fa-microscope mr-1.5 text-blue-400"></i>
+                        Stasiun Kerja Reaktor
+                    </span>
+                    <span id="reactor-item-count" class="text-xs bg-slate-800 px-2.5 py-1 rounded-full text-slate-400">
+                        0 Elemen Ditambahkan
+                    </span>
+                </div>
+
+                <!-- Main Drop Area / Flexible Puzzle Assembly Board -->
+                <div id="dropzone" class="flex-grow rounded-xl border-2 border-dashed border-slate-700/70 bg-slate-950/50 p-4 flex items-center justify-center flex-wrap gap-4 relative overflow-hidden transition-colors duration-300">
+                    
+                    <!-- Placeholder Instruction Text -->
+                    <div id="dropzone-placeholder" class="text-center text-slate-500 pointer-events-none p-6">
+                        <i class="fa-solid fa-hand-pointer text-4xl mb-3 text-slate-600 animate-bounce"></i>
+                        <p class="font-semibold text-sm">Klik atau Seret Ion / Atom dari Rak Bawah ke Sini</p>
+                        <p class="text-xs text-slate-600 mt-1">Susun ion atau atom hingga saling cocok & stabil!</p>
+                    </div>
+
+                    <!-- Dynamic Puzzle Pieces will be rendered here -->
+                    <div id="reactor-assembly" class="flex items-center justify-center flex-wrap gap-3 z-10 w-full min-h-[220px]"></div>
+
+                </div>
+
+                <!-- Live Chemistry Formula Result Preview Banner -->
+                <div id="formula-preview-banner" class="mt-3 bg-slate-900/90 rounded-xl p-3 border border-slate-800 flex justify-between items-center z-10">
+                    <span class="text-xs text-slate-400">Rumus Kimia Sementara:</span>
+                    <span id="live-formula" class="font-mono text-xl font-bold text-teal-300">-</span>
+                </div>
+            </div>
+
+            <!-- Bottom Element Shelf / Pool -->
+            <div class="glass-card rounded-2xl p-4 border border-slate-800">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-header text-sm font-bold text-slate-200 flex items-center">
+                        <i class="fa-solid fa-boxes-stacked text-teal-400 mr-2"></i>
+                        Rak Unsur & Ion Tersedia
+                    </h3>
+                    <span class="text-xs text-slate-400">Klik elemen untuk menambahkannya</span>
+                </div>
+
+                <!-- Dynamic Pool Cards -->
+                <div id="element-pool" class="flex items-center justify-center flex-wrap gap-3 min-h-[90px] p-2 bg-slate-950/60 rounded-xl border border-slate-900">
+                    <!-- Dynamic Element Buttons will load here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Interactive Periodic Table Mini Widget & Educational Hints (3 cols) -->
+        <div class="lg:col-span-3 flex flex-col gap-4">
+            
+            <!-- Quick Learning Card -->
+            <div class="glass-card rounded-2xl p-4 border border-indigo-500/20">
+                <h3 class="font-header text-md font-bold text-indigo-300 mb-2 flex items-center">
+                    <i class="fa-solid fa-lightbulb text-amber-400 mr-2"></i>
+                    Konsep Utama
+                </h3>
+                <div id="learning-concept-body" class="text-xs text-slate-300 leading-relaxed space-y-2">
+                    <p>
+                        <strong class="text-sky-300">Ikatan Ionik:</strong> Serah terima elektron antara logam (kation +) dan non-logam (anion -). Puzzle tonjolan jantan mencocokkan takik betina hingga muatan netral!
+                    </p>
+                </div>
+            </div>
+
+            <!-- Atom Detail / Hover Info Box -->
+            <div class="glass-card rounded-2xl p-4 border border-slate-800 flex-grow">
+                <h3 class="font-header text-md font-bold text-slate-200 mb-2 flex items-center">
+                    <i class="fa-solid fa-circle-info text-sky-400 mr-2"></i>
+                    Informasi Spesies
+                </h3>
+                <div id="atom-detail-card" class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 text-xs text-slate-400 space-y-2">
+                    <p class="italic text-center text-slate-500 py-4">Arahkan kursor / klik elemen di rak untuk melihat detail konfigurasi elektron dan muatan.</p>
+                </div>
+            </div>
+
+            <!-- Target Progress Checklist -->
+            <div class="glass-card rounded-2xl p-4 border border-slate-800">
+                <h3 class="font-header text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                    Daftar Target Tantangan
+                </h3>
+                <div id="target-checklist" class="space-y-1.5 text-xs">
+                    <!-- Dynamic checklist items -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Periodic Table Modal Dialog -->
+    <div id="modal-periodic-table" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-2xl p-6 max-w-4xl w-full border border-indigo-500/30 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-table-cells text-indigo-400 text-xl"></i>
+                    <h2 class="font-header text-xl font-bold text-slate-100">Tabel Periodik Mini Referensi Kimia</h2>
+                </div>
+                <button onclick="togglePeriodicTable()" class="p-2 text-slate-400 hover:text-white rounded-lg bg-slate-800">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <p class="text-xs text-slate-300 mb-4">
+                Gunakan tabel ini untuk melihat Unsur Logam (pembentuk Kation +) dan Unsur Non-Logam (pembentuk Anion - / Ikatan Kovalen) serta jumlah elektron valensinya.
+            </p>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs" id="periodic-table-grid">
+                <!-- Dynamic Elements Mini Cards -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Celebration Modal -->
+    <div id="modal-success" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-3xl p-8 max-w-md w-full text-center border-2 border-emerald-500/50 shadow-2xl animate-success relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl"></div>
+            
+            <div class="w-20 h-20 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-950 text-4xl shadow-lg shadow-emerald-500/40">
+                <i class="fa-solid fa-check-double"></i>
+            </div>
+
+            <h2 class="font-header text-2xl font-bold text-emerald-300 mb-1">Reaksi Berhasil!</h2>
+            <p class="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-3">Senyawa Stabil Terbentuk</p>
+
+            <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 mb-4">
+                <div id="success-formula" class="text-4xl font-extrabold text-teal-300 font-mono tracking-wider mb-1">NaCl</div>
+                <div id="success-name" class="text-lg font-bold text-slate-100">Natrium Klorida</div>
+                <p id="success-explanation" class="text-xs text-slate-300 mt-2 leading-relaxed">
+                    Atom Natrium melepaskan 1 elektron membentuk Na⁺, dan Atom Klorida menerima 1 elektron membentuk Cl⁻. Gaya elektrostatis menarik kedua ion menjadi senyawa ionik netral!
+                </p>
+            </div>
+
+            <button onclick="nextQuest()" class="w-full py-3 bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 font-header font-bold text-lg rounded-xl shadow-lg shadow-emerald-500/20 transition">
+                Lanjut ke Tantangan Berikutnya <i class="fa-solid fa-arrow-right ml-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <footer class="glass-panel py-2 px-4 text-center text-xs text-slate-500 border-t border-slate-900">
+        Simulasi Interaktif Pembelajaran Ikatan Kimia Modul PhET Interactive Simulations - Kimia SMA/SMP
+    </footer>
+
+    <script>
+        /* ==========================================================================
+           GAME DATA & DATABASE OF COMPOUNDS
+           ========================================================================== */
+        
+        const IONIC_QUESTS = [
+            {
+                id: 'NaCl',
+                name: 'Natrium Klorida',
+                formula: 'NaCl',
+                desc: 'Gabungkan kation Natrium (Na⁺) dan anion Klorida (Cl⁻) hingga mencapai muatan netral!',
+                required: { 'Na+': 1, 'Cl-': 1 },
+                explanation: '1 atom Na (logam) menyerahkan 1 elektron valensi ke 1 atom Cl (non-logam). Terbentuk ion Na⁺ dan Cl⁻ yang saling tarik-menarik dengan rasio 1:1.'
+            },
+            {
+                id: 'MgCl2',
+                name: 'Magnesium Klorida',
+                formula: 'MgCl₂',
+                desc: 'Magnesium membuang 2 elektron (Mg²⁺). Berapa ion Klorida (Cl⁻) yang dibutuhkan?',
+                required: { 'Mg2+': 1, 'Cl-': 2 },
+                explanation: '1 ion Mg²⁺ memiliki muatan +2, sehingga membutuhkan 2 ion Cl⁻ (masing-masing -1) agar total muatan senyawa menjadi netral (0).'
+            },
+            {
+                id: 'Na2O',
+                name: 'Natrium Oksida',
+                formula: 'Na₂O',
+                desc: 'Oksigen membentuk ion O²⁻. Berapa ion Natrium (Na⁺) yang diperlukan agar seimbang?',
+                required: { 'Na+': 2, 'O2-': 1 },
+                explanation: 'Ion O²⁻ membutuhkan 2 muatan positif. Oleh karena itu, 2 ion Na⁺ bergabung dengan 1 ion O²⁻ membentuk senyawa Na₂O.'
+            },
+            {
+                id: 'AlF3',
+                name: 'Aluminium Florida',
+                formula: 'AlF₃',
+                desc: 'Aluminium bermuatan +3 (Al³⁺). Pasangkan dengan ion Florida (F⁻) yang pas!',
+                required: { 'Al3+': 1, 'F-': 3 },
+                explanation: '1 ion Al³⁺ melepas 3 elektron. Tiga atom Fluor masing-masing menerima 1 elektron menjadi 3 ion F⁻, menghasilkan rumus AlF₃.'
+            },
+            {
+                id: 'CaO',
+                name: 'Kalsium Oksida',
+                formula: 'CaO',
+                desc: 'Gabungkan Kalsium (Ca²⁺) dengan Oksigen (O²⁻).',
+                required: { 'Ca2+': 1, 'O2-': 1 },
+                explanation: 'Muatan +2 dari Ca²⁺ dan -2 dari O²⁻ langsung saling menetralkan dalam rasio 1:1 menjadi CaO.'
+            }
+        ];
+
+        const COVALENT_QUESTS = [
+            {
+                id: 'H2',
+                name: 'Gas Hidrogen',
+                formula: 'H₂',
+                desc: 'Dua atom Hidrogen (masing-masing 1 elektron valensi) berbagi elektron untuk mencapai struktur duplet (2 elektron).',
+                required: { 'H': 2 },
+                bondsNeeded: 1, // 1 ikatan tunggal
+                explanation: 'Dua atom H saling berbagi 1 pasang elektron (ikatan kovalen tunggal), sehingga keduanya mencapai konfigurasi stabil duplet seperti Helium.'
+            },
+            {
+                id: 'H2O',
+                name: 'Air',
+                formula: 'H₂O',
+                desc: 'Oksigen (6 elektron valensi) membutuhkan 2 elektron lagi dari Hidrogen untuk mencapai oktet (8 elektron).',
+                required: { 'H': 2, 'O': 1 },
+                bondsNeeded: 2,
+                explanation: 'Atom Oksigen mengikat 2 atom Hidrogen melalui pemakaian bersama 2 pasang elektron. Oksigen mencapai oktet (8) dan Hidrogen mencapai duplet (2).'
+            },
+            {
+                id: 'CH4',
+                name: 'Metana',
+                formula: 'CH₄',
+                desc: 'Karbon (4 elektron valensi) butuh 4 elektron dari atom Hidrogen untuk stabil.',
+                required: { 'C': 1, 'H': 4 },
+                bondsNeeded: 4,
+                explanation: 'Atom Karbon membentuk 4 ikatan kovalen tunggal dengan 4 atom Hidrogen, sehingga Karbon memenuhi aturan oktet.'
+            },
+            {
+                id: 'O2',
+                name: 'Gas Oksigen',
+                formula: 'O₂',
+                desc: 'Dua atom Oksigen berbagi 2 pasang elektron (ikatan rangkap dua) agar keduanya mencapai oktet (8).',
+                required: { 'O': 2 },
+                bondsNeeded: 2,
+                explanation: 'Dua atom Oksigen berbagi 4 elektron (2 pasang), membentuk ikatan kovalen rangkap dua (O=O).'
+            },
+            {
+                id: 'CO2',
+                name: 'Karbon Dioksida',
+                formula: 'CO₂',
+                desc: 'Karbon di tengah berbagi elektron dengan dua atom Oksigen melalui ikatan rangkap.',
+                required: { 'C': 1, 'O': 2 },
+                bondsNeeded: 4,
+                explanation: 'Karbon membentuk ikatan kovalen rangkap dua dengan masing-masing atom Oksigen (O=C=O), sehingga semua atom mencapai oktet.'
+            }
+        ];
+
+        // Dictionary of species specs
+        const SPECIES_DATA = {
+            // Ions
+            'Na+': { symbol: 'Na', charge: 1, type: 'cation', color: '#0284c7', bgClass: 'bg-sky-600', valency: 1, name: 'Natrium', desc: 'Logam Golongan IA. Melepas 1 elektron.' },
+            'Mg2+': { symbol: 'Mg', charge: 2, type: 'cation', color: '#0284c7', bgClass: 'bg-blue-600', valency: 2, name: 'Magnesium', desc: 'Logam Golongan IIA. Melepas 2 elektron.' },
+            'Al3+': { symbol: 'Al', charge: 3, type: 'cation', color: '#2563eb', bgClass: 'bg-indigo-600', valency: 3, name: 'Aluminium', desc: 'Logam Golongan IIIA. Melepas 3 elektron.' },
+            'Ca2+': { symbol: 'Ca', charge: 2, type: 'cation', color: '#0284c7', bgClass: 'bg-cyan-600', valency: 2, name: 'Kalsium', desc: 'Logam Golongan IIA. Melepas 2 elektron.' },
+            
+            'Cl-': { symbol: 'Cl', charge: -1, type: 'anion', color: '#e11d48', bgClass: 'bg-rose-600', valency: 1, name: 'Klorida', desc: 'Non-logam Halogen. Menerima 1 elektron.' },
+            'O2-': { symbol: 'O', charge: -2, type: 'anion', color: '#be123c', bgClass: 'bg-pink-700', valency: 2, name: 'Oksida', desc: 'Non-logam Kalkogen. Menerima 2 elektron.' },
+            'F-': { symbol: 'F', charge: -1, type: 'anion', color: '#e11d48', bgClass: 'bg-red-600', valency: 1, name: 'Florida', desc: 'Non-logam Halogen. Menerima 1 elektron.' },
+
+            // Atoms for Covalent
+            'H': { symbol: 'H', valenceE: 1, neededE: 1, type: 'covalent', bgClass: 'bg-amber-600', color: '#d97706', name: 'Hidrogen', desc: 'Elektron valensi: 1. Butuh 1 elektron (Duplet).' },
+            'O': { symbol: 'O', valenceE: 6, neededE: 2, type: 'covalent', bgClass: 'bg-rose-600', color: '#e11d48', name: 'Oksigen', desc: 'Elektron valensi: 6. Butuh 2 elektron (Oktet).' },
+            'C': { symbol: 'C', valenceE: 4, neededE: 4, type: 'covalent', bgClass: 'bg-emerald-600', color: '#059669', name: 'Karbon', desc: 'Elektron valensi: 4. Butuh 4 elektron (Oktet).' }
+        };
+
+        /* ==========================================================================
+           GAME STATE
+           ========================================================================== */
+        let currentMode = 'ionic'; // 'ionic' or 'covalent'
+        let currentQuestIndex = 0;
+        let score = 0;
+        let completedCount = 0;
+        let soundEnabled = true;
+
+        // Assembly station items
+        let reactorItems = []; // List of species keys present in reactor
+
+        /* Web Audio API Synthesizer for Interactive Sound Effects */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'add') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'success') {
+                    const notes = [440, 554.37, 659.25, 880];
+                    notes.forEach((freq, idx) => {
+                        const noteOsc = audioCtx.createOscillator();
+                        const noteGain = audioCtx.createGain();
+                        noteOsc.connect(noteGain);
+                        noteGain.connect(audioCtx.destination);
+                        noteOsc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.1);
+                        noteGain.gain.setValueAtTime(0.2, audioCtx.currentTime + idx * 0.1);
+                        noteGain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + idx * 0.1 + 0.2);
+                        noteOsc.start(audioCtx.currentTime + idx * 0.1);
+                        noteOsc.stop(audioCtx.currentTime + idx * 0.1 + 0.2);
+                    });
+                } else if (type === 'error') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(110, audioCtx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.2);
+                }
+            } catch (e) {
+                console.log("Audio play error:", e);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('audio-icon');
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-rose-400';
+            }
+        }
+
+        /* ==========================================================================
+           INITIALIZATION & MODE SWITCHING
+           ========================================================================== */
+        window.onload = function() {
+            loadQuest();
+            renderPeriodicTableModal();
+        };
+
+        function switchMode(mode) {
+            currentMode = mode;
+            currentQuestIndex = 0;
+            reactorItems = [];
+
+            const btnIonic = document.getElementById('btn-mode-ionic');
+            const btnCoval = document.getElementById('btn-mode-covalent');
+            const badge = document.getElementById('target-mode-badge');
+            const ionicPanel = document.getElementById('ionic-status-panel');
+            const covalPanel = document.getElementById('covalent-status-panel');
+
+            if (mode === 'ionic') {
+                btnIonic.className = "flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 bg-blue-600 text-white shadow-md";
+                btnCoval.className = "flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 text-slate-400 hover:text-white";
+                badge.innerText = "Mode Ionik";
+                ionicPanel.classList.remove('hidden');
+                covalPanel.classList.add('hidden');
+                document.getElementById('rule-hint-text').innerText = "Netralisasi Muatan (0)";
+                document.getElementById('learning-concept-body').innerHTML = `
+                    <p><strong class="text-sky-300">Ikatan Ionik:</strong> Serah terima elektron antara logam (kation +) dan non-logam (anion -). Puzzle tonjolan jantan mencocokkan takik betina hingga muatan netral!</p>
+                `;
+            } else {
+                btnCoval.className = "flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 bg-blue-600 text-white shadow-md";
+                btnIonic.className = "flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 text-slate-400 hover:text-white";
+                badge.innerText = "Mode Kovalen";
+                ionicPanel.classList.add('hidden');
+                covalPanel.classList.remove('hidden');
+                document.getElementById('rule-hint-text').innerText = "Aturan Oktet (8) / Duplet (2)";
+                document.getElementById('learning-concept-body').innerHTML = `
+                    <p><strong class="text-emerald-300">Ikatan Kovalen:</strong> Pemakaian bersama pasangan elektron antar atom non-logam agar masing-masing mencapai kestabilan gas mulia (Oktet 8 / Duplet 2).</p>
+                `;
+            }
+
+            loadQuest();
+        }
+
+        function getCurrentQuestList() {
+            return currentMode === 'ionic' ? IONIC_QUESTS : COVALENT_QUESTS;
+        }
+
+        function loadQuest() {
+            const questList = getCurrentQuestList();
+            if (currentQuestIndex >= questList.length) {
+                currentQuestIndex = 0; // Loop back
+            }
+
+            const quest = questList[currentQuestIndex];
+            
+            // Render Quest Info
+            document.getElementById('target-compound-name').innerText = quest.name;
+            document.getElementById('target-compound-formula').innerText = quest.formula;
+            document.getElementById('target-compound-desc').innerText = quest.desc;
+            document.getElementById('completed-display').innerText = `${currentQuestIndex}/${questList.length}`;
+
+            // Reset reactor
+            reactorItems = [];
+            renderReactor();
+            renderElementPool(quest);
+            renderChecklist(questList);
+        }
+
+        /* ==========================================================================
+           RENDER ELEMENT POOL & PUZZLE SVG CREATION
+           ========================================================================== */
+        function renderElementPool(quest) {
+            const poolContainer = document.getElementById('element-pool');
+            poolContainer.innerHTML = '';
+
+            // Get required keys and add extra distractor keys
+            const keys = Object.keys(quest.required);
+            
+            // Add pool buttons
+            keys.forEach(key => {
+                const data = SPECIES_DATA[key];
+                const btn = createPoolCard(key, data);
+                poolContainer.appendChild(btn);
+            });
+        }
+
+        function createPoolCard(key, data) {
+            const card = document.createElement('div');
+            card.className = `puzzle-piece p-3 rounded-xl ${data.bgClass} text-white flex flex-col items-center justify-center min-w-[80px] cursor-pointer shadow-lg hover:brightness-110 transform active:scale-95 transition border border-white/20`;
+            
+            card.onclick = () => addToReactor(key);
+            card.onmouseenter = () => showAtomDetail(key);
+
+            let label = key;
+            if (currentMode === 'ionic') {
+                // Show SVG shape for puzzle representation
+                card.innerHTML = `
+                    <div class="font-bold text-lg font-mono">${data.symbol}</div>
+                    <div class="text-xs bg-black/30 px-2 py-0.5 rounded-full font-bold mt-1">
+                        ${data.charge > 0 ? '+' + data.charge : data.charge}
+                    </div>
+                `;
+            } else {
+                card.innerHTML = `
+                    <div class="font-bold text-lg font-mono">${data.symbol}</div>
+                    <div class="text-[10px] bg-black/30 px-2 py-0.5 rounded-full mt-1">
+                        ${data.valenceE} e⁻ Valensi
+                    </div>
+                `;
+            }
+            return card;
+        }
+
+        function showAtomDetail(key) {
+            const data = SPECIES_DATA[key];
+            const detailCard = document.getElementById('atom-detail-card');
+            
+            detailCard.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <span class="w-3 h-3 rounded-full ${data.bgClass}"></span>
+                    <strong class="text-slate-200 text-sm">${data.name} (${key})</strong>
+                </div>
+                <p class="text-slate-300 leading-snug">${data.desc}</p>
+            `;
+        }
+
+        /* ==========================================================================
+           REACTOR ASSEMBLY & SVG PUZZLE PIECES
+           ========================================================================== */
+        function addToReactor(key) {
+            playSound('add');
+            reactorItems.push(key);
+            renderReactor();
+        }
+
+        function removeFromReactor(index) {
+            reactorItems.splice(index, 1);
+            renderReactor();
+        }
+
+        function clearReactor() {
+            reactorItems = [];
+            renderReactor();
+        }
+
+        function renderReactor() {
+            const assembly = document.getElementById('reactor-assembly');
+            const placeholder = document.getElementById('dropzone-placeholder');
+            const countBadge = document.getElementById('reactor-item-count');
+
+            assembly.innerHTML = '';
+            countBadge.innerText = `${reactorItems.length} Elemen Ditambahkan`;
+
+            if (reactorItems.length === 0) {
+                placeholder.classList.remove('hidden');
+            } else {
+                placeholder.classList.add('hidden');
+            }
+
+            // Render each element inside assembly zone as interactive Puzzle SVG
+            reactorItems.forEach((key, idx) => {
+                const data = SPECIES_DATA[key];
+                const pieceWrapper = document.createElement('div');
+                pieceWrapper.className = 'relative group cursor-pointer transition transform hover:scale-105';
+                
+                // Click to remove button overlay
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'absolute -top-2 -right-2 bg-rose-600 hover:bg-rose-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition z-20 shadow-md';
+                removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    removeFromReactor(idx);
+                };
+                pieceWrapper.appendChild(removeBtn);
+
+                // Render SVG Puzzle Block according to Ionic or Covalent Mode
+                if (currentMode === 'ionic') {
+                    pieceWrapper.appendChild(createIonicPuzzleSVG(key, data));
+                } else {
+                    pieceWrapper.appendChild(createCovalentAtomSVG(key, data));
+                }
+
+                assembly.appendChild(pieceWrapper);
+            });
+
+            updateCalculations();
+        }
+
+        /**
+         * Dynamic SVG Puzzle Piece Generator
+         * Cations (+) get "Knobs / Tonjolan Jantan" protruding out.
+         * Anions (-) get "Notches / Takik Betina" indented in.
+         */
+        function createIonicPuzzleSVG(key, data) {
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            const isCation = data.type === 'cation';
+            const count = Math.abs(data.charge);
+            
+            const width = 100;
+            const height = 90 + (count * 15);
+            svg.setAttribute("width", width);
+            svg.setAttribute("height", height);
+            svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+            
+            // Build puzzle shape path
+            const mainBg = data.color;
+            
+            let pathD = `M 15 15 L 85 15 Q 90 15 90 20 L 90 ${height - 20} Q 90 ${height - 15} 85 ${height - 15} L 15 ${height - 15} Q 10 ${height - 15} 10 ${height - 20} L 10 20 Q 10 15 15 15 Z`;
+
+            // Draw Base Rect
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", pathD);
+            path.setAttribute("fill", mainBg);
+            path.setAttribute("stroke", "#ffffff");
+            path.setAttribute("stroke-width", "2");
+            path.setAttribute("rx", "10");
+            svg.appendChild(path);
+
+            // Render Knobs (+) or Notches (-) based on charge magnitude
+            for (let i = 0; i < count; i++) {
+                const yPos = 35 + (i * 28);
+                const knob = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                
+                if (isCation) {
+                    // Cation Knob protruding out right
+                    knob.setAttribute("cx", "90");
+                    knob.setAttribute("cy", yPos);
+                    knob.setAttribute("r", "10");
+                    knob.setAttribute("fill", "#0284c7");
+                    knob.setAttribute("stroke", "#ffffff");
+                    knob.setAttribute("stroke-width", "2");
+                } else {
+                    // Anion Notch indented on left
+                    knob.setAttribute("cx", "10");
+                    knob.setAttribute("cy", yPos);
+                    knob.setAttribute("r", "10");
+                    knob.setAttribute("fill", "#0f172a"); // Cutout color matching background
+                    knob.setAttribute("stroke", "#e11d48");
+                    knob.setAttribute("stroke-width", "2");
+                }
+                svg.appendChild(knob);
+            }
+
+            // Symbol Label
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", "50");
+            text.setAttribute("y", height / 2 + 5);
+            text.setAttribute("text-anchor", "middle");
+            text.setAttribute("fill", "#ffffff");
+            text.setAttribute("font-size", "20");
+            text.setAttribute("font-weight", "bold");
+            text.setAttribute("font-family", "Fredoka, sans-serif");
+            text.textContent = key;
+            svg.appendChild(text);
+
+            return svg;
+        }
+
+        /**
+         * Render Covalent Atom SVG with Valence Dots
+         */
+        function createCovalentAtomSVG(key, data) {
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            const width = 110;
+            const height = 110;
+            svg.setAttribute("width", width);
+            svg.setAttribute("height", height);
+            svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+            // Central Atom Sphere
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", "55");
+            circle.setAttribute("cy", "55");
+            circle.setAttribute("r", "32");
+            circle.setAttribute("fill", data.color);
+            circle.setAttribute("stroke", "#ffffff");
+            circle.setAttribute("stroke-width", "2");
+            svg.appendChild(circle);
+
+            // Text Label
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", "55");
+            text.setAttribute("y", "61");
+            text.setAttribute("text-anchor", "middle");
+            text.setAttribute("fill", "#ffffff");
+            text.setAttribute("font-size", "22");
+            text.setAttribute("font-weight", "bold");
+            text.setAttribute("font-family", "Fredoka, sans-serif");
+            text.textContent = data.symbol;
+            svg.appendChild(text);
+
+            // Render Valence Electron Dots around atom circle
+            const dots = data.valenceE;
+            const radius = 42;
+            for (let i = 0; i < dots; i++) {
+                const angle = (i * (2 * Math.PI / dots)) - (Math.PI / 2);
+                const dx = 55 + radius * Math.cos(angle);
+                const dy = 55 + radius * Math.sin(angle);
+
+                const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                dot.setAttribute("cx", dx);
+                dot.setAttribute("cy", dy);
+                dot.setAttribute("r", "5");
+                dot.setAttribute("fill", "#f59e0b"); // Glowing amber electron dots
+                dot.setAttribute("stroke", "#ffffff");
+                dot.setAttribute("stroke-width", "1");
+                svg.appendChild(dot);
+            }
+
+            return svg;
+        }
+
+        /* ==========================================================================
+           LOGIC & CALCULATIONS
+           ========================================================================== */
+        function updateCalculations() {
+            if (currentMode === 'ionic') {
+                updateIonicCalculations();
+            } else {
+                updateCovalentCalculations();
+            }
+        }
+
+        function updateIonicCalculations() {
+            let posSum = 0;
+            let negSum = 0;
+            let counts = {};
+
+            reactorItems.forEach(key => {
+                const data = SPECIES_DATA[key];
+                if (data.charge > 0) posSum += data.charge;
+                else negSum += Math.abs(data.charge);
+
+                counts[key] = (counts[key] || 0) + 1;
+            });
+
+            const net = posSum - negSum;
+
+            // Update UI elements
+            document.getElementById('cation-charge-sum').innerText = `+${posSum}`;
+            document.getElementById('anion-charge-sum').innerText = `-${negSum}`;
+            
+            const netDisplay = document.getElementById('net-charge-display');
+            if (net === 0 && reactorItems.length > 0) {
+                netDisplay.innerText = "0 (NETRAL - STABIL!)";
+                netDisplay.className = "text-emerald-400 font-bold text-sm font-mono";
+            } else if (net > 0) {
+                netDisplay.innerText = `+${net} (Kelebihan Kation)`;
+                netDisplay.className = "text-sky-400 font-bold text-sm font-mono";
+            } else if (net < 0) {
+                netDisplay.innerText = `${net} (Kelebihan Anion)`;
+                netDisplay.className = "text-rose-400 font-bold text-sm font-mono";
+            } else {
+                netDisplay.innerText = "0";
+                netDisplay.className = "text-amber-400 font-bold text-sm font-mono";
+            }
+
+            // Progress Bars
+            const maxVal = Math.max(posSum + negSum, 1);
+            document.getElementById('charge-bar-pos').style.width = `${(posSum / maxVal) * 100}%`;
+            document.getElementById('charge-bar-neg').style.width = `${(negSum / maxVal) * 100}%`;
+
+            // Live Formula Generator
+            document.getElementById('live-formula').innerText = generateFormulaText(counts);
+        }
+
+        function updateCovalentCalculations() {
+            const statusBox = document.getElementById('covalent-atoms-status');
+            statusBox.innerHTML = '';
+
+            let counts = {};
+            reactorItems.forEach(key => {
+                counts[key] = (counts[key] || 0) + 1;
+            });
+
+            if (reactorItems.length === 0) {
+                statusBox.innerHTML = '<span class="text-slate-500 italic">Belum ada atom di reaktor.</span>';
+                document.getElementById('live-formula').innerText = '-';
+                return;
+            }
+
+            // Calculate shared electrons status
+            Object.keys(counts).forEach(key => {
+                const data = SPECIES_DATA[key];
+                const num = counts[key];
+                const target = key === 'H' ? 2 : 8; // Duplet vs Octet
+
+                const row = document.createElement('div');
+                row.className = "flex justify-between items-center bg-slate-950/60 p-2 rounded-lg border border-slate-900";
+                row.innerHTML = `
+                    <span class="font-bold text-slate-300">${num}x Atom ${data.name} (${key})</span>
+                    <span class="text-xs ${reactorItems.length > 1 ? 'text-emerald-400' : 'text-amber-400'} font-mono">
+                        Target: ${target} e⁻
+                    </span>
+                `;
+                statusBox.appendChild(row);
+            });
+
+            document.getElementById('live-formula').innerText = generateFormulaText(counts);
+        }
+
+        function generateFormulaText(counts) {
+            if (Object.keys(counts).length === 0) return '-';
+            
+            let formula = '';
+            Object.keys(counts).forEach(key => {
+                const baseSymbol = SPECIES_DATA[key].symbol;
+                const cnt = counts[key];
+                formula += baseSymbol + (cnt > 1 ? toSubscript(cnt) : '');
+            });
+            return formula;
+        }
+
+        function toSubscript(num) {
+            const subs = { '0':'₀', '1':'₁', '2':'₂', '3':'₃', '4':'₄', '5':'₅', '6':'₆', '7':'₇', '8':'₈', '9':'₉' };
+            return num.toString().split('').map(c => subs[c] || c).join('');
+        }
+
+        /* ==========================================================================
+           TEST BONDING & QUEST VALIDATION
+           ========================================================================== */
+        function testBonding() {
+            const questList = getCurrentQuestList();
+            const quest = questList[currentQuestIndex];
+
+            // Calculate present counts
+            let currentCounts = {};
+            reactorItems.forEach(k => {
+                currentCounts[k] = (currentCounts[k] || 0) + 1;
+            });
+
+            // Compare with quest requirements
+            let isSuccess = true;
+            const reqKeys = Object.keys(quest.required);
+
+            if (Object.keys(currentCounts).length !== reqKeys.length) {
+                isSuccess = false;
+            } else {
+                for (let k of reqKeys) {
+                    if (currentCounts[k] !== quest.required[k]) {
+                        isSuccess = false;
+                        break;
+                    }
+                }
+            }
+
+            if (isSuccess) {
+                playSound('success');
+                score += 100;
+                completedCount++;
+                document.getElementById('score-display').innerText = score;
+                
+                // Show Success Celebration Modal
+                document.getElementById('success-formula').innerText = quest.formula;
+                document.getElementById('success-name').innerText = quest.name;
+                document.getElementById('success-explanation').innerText = quest.explanation;
+                document.getElementById('modal-success').classList.remove('hidden');
+            } else {
+                playSound('error');
+                // Visual feedback error wiggle on reactor
+                const reactor = document.getElementById('reactor-area');
+                reactor.classList.add('border-rose-500');
+                setTimeout(() => {
+                    reactor.classList.remove('border-rose-500');
+                }, 600);
+            }
+        }
+
+        function nextQuest() {
+            document.getElementById('modal-success').classList.add('hidden');
+            currentQuestIndex++;
+            loadQuest();
+        }
+
+        /* ==========================================================================
+           SIDEBAR CHECKLIST & PERIODIC TABLE MODAL
+           ========================================================================== */
+        function renderChecklist(questList) {
+            const checklistContainer = document.getElementById('target-checklist');
+            checklistContainer.innerHTML = '';
+
+            questList.forEach((q, idx) => {
+                const item = document.createElement('div');
+                const isCurrent = idx === currentQuestIndex;
+                const isPassed = idx < currentQuestIndex;
+
+                item.className = `flex items-center justify-between p-2 rounded-xl text-xs ${isCurrent ? 'bg-blue-900/40 border border-blue-500/40 text-blue-300 font-bold' : isPassed ? 'bg-emerald-950/30 text-emerald-400 opacity-80' : 'bg-slate-900/50 text-slate-500'}`;
+                
+                item.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid ${isPassed ? 'fa-circle-check text-emerald-400' : isCurrent ? 'fa-vial text-blue-400' : 'fa-circle-notch'}"></i>
+                        <span>${q.name} (${q.formula})</span>
+                    </div>
+                    <span>${isPassed ? '+100' : ''}</span>
+                `;
+                checklistContainer.appendChild(item);
+            });
+        }
+
+        function togglePeriodicTable() {
+            const modal = document.getElementById('modal-periodic-table');
+            modal.classList.toggle('hidden');
+        }
+
+        function renderPeriodicTableModal() {
+            const grid = document.getElementById('periodic-table-grid');
+            grid.innerHTML = '';
+
+            Object.keys(SPECIES_DATA).forEach(key => {
+                const data = SPECIES_DATA[key];
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between hover:border-indigo-500/50 transition`;
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <span class="font-mono text-lg font-bold text-indigo-300">${data.symbol}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full ${data.type === 'cation' ? 'bg-sky-950 text-sky-400 border border-sky-800' : data.type === 'anion' ? 'bg-rose-950 text-rose-400 border border-rose-800' : 'bg-amber-950 text-amber-400 border border-amber-800'}">
+                            ${data.type.toUpperCase()}
+                        </span>
+                    </div>
+                    <div class="mt-2">
+                        <div class="font-bold text-slate-200">${data.name} (${key})</div>
+                        <p class="text-[11px] text-slate-400 mt-0.5">${data.desc}</p>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
